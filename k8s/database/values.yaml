@@ -1,0 +1,23 @@
+global:
+  postgresql:
+    auth:
+      database: "otus_db"
+      username: "otus_user"
+      password: "otus_password_123"
+      postgresPassword: "postgres_password_456"
+
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: "standard"
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+metrics:
+  enabled: false

@@ -1,0 +1,69 @@
+# database/migration-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-migration
+  namespace: default
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      containers:
+        - name: migration
+          image: postgres:13-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Waiting for PostgreSQL to be ready..."
+              until PGPASSWORD=$POSTGRES_PASSWORD pg_isready -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER; do
+                sleep 2
+              done
+              
+              echo "Applying migrations..."
+              PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB << EOF
+              CREATE TABLE IF NOT EXISTS users (
+                  id BIGINT PRIMARY KEY,
+                  username VARCHAR(50) UNIQUE NOT NULL,
+                  email VARCHAR(255) UNIQUE NOT NULL,
+                  first_name VARCHAR(100),
+                  last_name VARCHAR(100),
+                  phone VARCHAR(20),
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              );
+              
+              CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+              CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+              EOF
+              
+              echo "Migrations completed successfully!"
+          env:
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PORT
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: POSTGRES_DB
+      restartPolicy: Never
